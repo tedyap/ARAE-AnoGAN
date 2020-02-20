@@ -151,5 +151,8 @@ def generate_data_file(directory):
 if __name__ == '__main__':
     args = parser.parse_args()
 
+    if not os.path.exists(args.data_dir):
+        os.makedirs(args.data_dir)
+
     generate_data_file(args.data_dir)
 

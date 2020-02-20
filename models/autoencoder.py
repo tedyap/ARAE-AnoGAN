@@ -2,7 +2,7 @@ import tensorflow as tf
 
 
 class Seq2Seq(tf.keras.Model):
-    def __init__(self, mode, params, args):
+    def __init__(self, params, args):
         super(Seq2Seq, self).__init__()
         self.embedding = tf.keras.layers.Embedding(args.vocab_size, params.embedding_size, name="Enc-Embed")
         self.embedding_decoder = tf.keras.layers.Embedding(args.vocab_size, params.embedding_size, name="Dec-Embed")
@@ -13,12 +13,12 @@ class Seq2Seq(tf.keras.Model):
         self.dense = tf.keras.layers.Dense(args.vocab_size, name="Dec-Dense")
         self.hidden_size = params.hidden_size
         self.noise_radius = params.noise_radius
+        self.training = True
 
     def init_state(self, batch_size):
         return tf.zeros([1, batch_size, self.hidden_size])
 
     def encode(self, indices, noise):
-        batch_size = indices.shape[0]
         embed = self.embedding(indices)
         output, state_h, state_c = self.encoder_lstm(embed)
 

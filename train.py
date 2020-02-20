@@ -23,9 +23,13 @@ if __name__ == '__main__':
     corpus = Corpus(args.data_dir, args.vocab_size)
     dataset = tf.data.Dataset.from_tensor_slices((corpus.train_source, corpus.train_target)).batch(params.batch_size)
 
-    autoencoder = Seq2Seq('train', params, args)
-    discriminator = Discriminator('train', params, args)
-    generator = Generator('train', params, args)
+    autoencoder = Seq2Seq(params, args)
+    discriminator = Discriminator(params)
+    generator = Generator(params)
+
+    autoencoder.trainable = True
+    discriminator.trainable = True
+    generator.trainable = True
 
 
 
