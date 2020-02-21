@@ -4,6 +4,7 @@ import tensorflow as tf
 class Seq2Seq(tf.keras.Model):
     def __init__(self, params, args):
         super(Seq2Seq, self).__init__()
+        self.optimizer = tf.keras.optimizers.SGD(params.lr_ae)
         self.embedding = tf.keras.layers.Embedding(args.vocab_size, params.embedding_size, name="Enc-Embed")
         self.embedding_decoder = tf.keras.layers.Embedding(args.vocab_size, params.embedding_size, name="Dec-Embed")
         self.encoder_lstm = tf.keras.layers.LSTM(

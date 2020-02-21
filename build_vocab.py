@@ -1,7 +1,10 @@
 import os
+import logging
+import numpy as np
+import pandas as pd
 
 
-class Dictionary():
+class Dictionary:
     """
     Dictionary class to create word-to-index and index-to-word dictory to store vocabulary.
 
@@ -41,7 +44,7 @@ class Dictionary():
         for word in self.pruned_vocab:
             if word not in self.word2idx:
                 self.word2idx[word] = len(self.word2idx)
-        print("original vocab {}; pruned to {}".
+        logging.info("original vocab {}; pruned to {}".
               format(len(self.wordcounts), len(self.word2idx)))
         self.idx2word = {v: k for k, v in self.word2idx.items()}
 
@@ -49,7 +52,7 @@ class Dictionary():
         return len(self.word2idx)
 
 
-class Corpus():
+class Corpus:
     def __init__(self, path, maxlen, vocab_size, lowercase=False):
         self.dictionary = Dictionary()
         self.maxlen = maxlen
@@ -111,21 +114,7 @@ class Corpus():
 
         np.asarray(lines)
 
-        print("Number of sentences dropped from {}: {} out of {} total".
+        logging.info("Number of sentences dropped from {}: {} out of {} total".
               format(path, dropped, linecount))
-        print("Average sentence length: {:.2f}".format(wordcount / (linecount - dropped)))
+        logging.info("Average sentence length: {:.2f}".format(wordcount / (linecount - dropped)))
         return lines
-
-
-def idx_to_words(indices):
-    # generated sentence
-    words = [data.dictionary.idx2word[x] for x in indices]
-    # truncate sentences to first occurrence of <eos>
-    truncated_sent = []
-    for w in words:
-        if w != '<eos>':
-            truncated_sent.append(w)
-        else:
-            break
-    sent = " ".join(truncated_sent)
-    return sent

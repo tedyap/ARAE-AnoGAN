@@ -4,6 +4,8 @@ import tensorflow as tf
 class Generator(tf.keras.Model):
     def __init__(self, params):
         super(Generator, self).__init__()
+        self.optimizer = tf.keras.optimizers.Adam(params.lr_gen)
+        self.noise_size = params.noise_size
         self.layer_sizes = params.gen_size
         self.layers_list = []
         self.layers_list.append(tf.keras.layers.Dense(self.layer_sizes[0], input_shape=(params.noise_size,)))

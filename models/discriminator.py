@@ -4,7 +4,8 @@ import tensorflow as tf
 class Discriminator(tf.keras.Model):
     def __init__(self, params):
         super(Discriminator, self).__init__()
-        self.layers_sizes = params.disc_size
+        self.optimizer = tf.keras.optimizers.Adam(params.lr_disc)
+        self.layer_sizes = params.disc_size
 
         self.layers_list = []
 
@@ -30,7 +31,7 @@ class Discriminator(tf.keras.Model):
             if i == 1 and not training:
                 continue
             x = layer(x)
-        # x = tf.reduce_mean(x)
+        x = tf.reduce_mean(x)
         return x
 
     def extract_feature(self, x):
