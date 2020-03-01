@@ -87,6 +87,20 @@ def set_logger(log_path):
         logger.addHandler(stream_handler)
 
 
+def static_vars(**kwargs):
+    def decorate(func):
+        for k in kwargs:
+            setattr(func, k, kwargs[k])
+        return func
+    return decorate
+
+
+def iget_line(filepath, encoding='utf-8'):
+    with open(filepath, 'r', encoding=encoding) as f:
+        for line in f:
+            yield line.strip()
+
+
 def save_dict_to_json(d, json_path):
     """Saves dict of floats in json file
     Args:
@@ -100,19 +114,20 @@ def save_dict_to_json(d, json_path):
 
 
 class Checkpoints:
-    def __init__(self, models, ckpts_dir):
+    def __init__(self, models, optimizers, ckpts_dir):
         autoencoder, discriminator, generator = models
+        ae_optim, disc_optim, gen_optim = optimizers
 
         # Checkpoint managers
-        self.ae_ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=autoencoder.optimizer, net=autoencoder)
+        self.ae_ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=ae_optim, net=autoencoder)
         self.ae_manager = tf.train.CheckpointManager(self.ae_ckpt, os.path.join(ckpts_dir, 'ae_ckpts'),
                                                 max_to_keep=1)
 
-        self.disc_ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=discriminator.optimizer, net=discriminator)
+        self.disc_ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=disc_optim, net=discriminator)
         self.disc_manager = tf.train.CheckpointManager(self.disc_ckpt, os.path.join(ckpts_dir, 'disc_ckpts'),
                                                   max_to_keep=1)
 
-        self.gen_ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=generator.optimizer, net=generator)
+        self.gen_ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=gen_optim, net=generator)
         self.gen_manager = tf.train.CheckpointManager(self.gen_ckpt, os.path.join(ckpts_dir, 'gen_ckpts'),
                                                  max_to_keep=1)
 
@@ -127,64 +142,7 @@ class Checkpoints:
         self.disc_manager.save()
         self.gen_manager.save()
 
-
-def generate_output(models, source, corpus, args):
-    autoencoder, discriminator, generator = models
-
-    or_sent = []
-    ae_sent = []
-    ge_sent = []
-
-    # store original sentences
-    for idx in source.numpy():
-        words = [corpus.dictionary.idx2word[x] for x in idx[1:]]
-        truncated_sent = []
-        for w in words:
-            if w != '<pad>':
-                truncated_sent.append(w)
-            else:
-                break
-        sent = " ".join(truncated_sent)
-        or_sent.append(sent)
-
-    # generate output from autoencoder
-    latent, logits = autoencoder(source, False)
-    max_indices = logits
-    max_indices = tf.math.argmax(logits, 2).numpy()
-    for idx in max_indices:
-        words = [corpus.dictionary.idx2word[x] for x in idx]
-        truncated_sent = []
-        for w in words:
-            if w != '<eos>':
-                truncated_sent.append(w)
-            else:
-                break
-        sent = " ".join(truncated_sent)
-        ae_sent.append(sent)
-
-    # generate output from generator
-    noise = tf.random.normal((source.shape[0], 100))
-    fake_latent = generator(noise, training=False)
-    output = autoencoder.generate(source, fake_latent, 30)
-    max_indices = output.numpy()[:, 1:]
-    for idx in max_indices:
-        words = [corpus.dictionary.idx2word[x] for x in idx]
-
-        truncated_sent = []
-        for w in words:
-            if w != '<eos>':
-                truncated_sent.append(w)
-            else:
-                break
-        sent = " ".join(truncated_sent)
-        ge_sent.append(sent)
-
-    logging.info("OR: " + or_sent[0] + '\n')
-    logging.info("AE: " + ae_sent[0] + '\n')
-    logging.info("GE: " + ge_sent[0] + '\n\n')
-
-    with open(os.path.join(args.model_dir, 'reuters_output.txt'), 'w') as file:
-        for i in range(len(or_sent)):
-            file.write("OR: " + or_sent[i] + '\n')
-            file.write("AE: " + ae_sent[i] + '\n')
-            file.write("GE: " + ge_sent[i] + '\n\n')
+    def restore(self):
+        self.ae_ckpt.restore(self.ae_manager.latest_checkpoint)
+        self.disc_ckpt.restore(self.disc_manager.latest_checkpoint)
+        self.gen_ckpt.restore(self.gen_manager.latest_checkpoint)

@@ -4,5 +4,5 @@ data/
 *__pycache__*
 *floyd*
 restart.py
-reuters_output.txt
-train.log
+output/
+experiments/base

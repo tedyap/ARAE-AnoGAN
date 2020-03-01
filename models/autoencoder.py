@@ -1,27 +1,57 @@
+import os
 import tensorflow as tf
+from data import Corpus
+from models.generator import Generator
+from opts import configure_args
+from utils import Params
 
 
 class Seq2Seq(tf.keras.Model):
     def __init__(self, params, args):
         super(Seq2Seq, self).__init__()
-        self.optimizer = tf.keras.optimizers.SGD(params.lr_ae)
-        self.embedding = tf.keras.layers.Embedding(args.vocab_size, params.embedding_size, name="Enc-Embed")
-        self.embedding_decoder = tf.keras.layers.Embedding(args.vocab_size, params.embedding_size, name="Dec-Embed")
+        self.embedding_encoder = tf.keras.layers.Embedding(
+            args.vocab_size,
+            params.embedding_size,
+            embeddings_initializer=tf.keras.initializers.RandomUniform(-0.1, 0.1),
+            mask_zero=True,
+            name="Enc-Embed")
+        self.embedding_decoder = tf.keras.layers.Embedding(
+            args.vocab_size, params.embedding_size,
+            embeddings_initializer=tf.keras.initializers.RandomUniform(-0.1, 0.1),
+            mask_zero=True,
+            name="Dec-Embed")
         self.encoder_lstm = tf.keras.layers.LSTM(
-            params.hidden_size, return_sequences=True, return_state=True, name="Enc-LSTM")
+            params.hidden_size,
+            return_sequences=True,
+            return_state=True,
+            kernel_initializer=tf.keras.initializers.RandomUniform(-0.1, 0.1),
+            recurrent_initializer=tf.keras.initializers.RandomUniform(-0.1, 0.1),
+            use_bias=False,
+            name="Enc-LSTM")
         self.decoder_lstm = tf.keras.layers.LSTM(
-            params.hidden_size, return_sequences=True, return_state=True, name="Dec-LSTM")
-        self.dense = tf.keras.layers.Dense(args.vocab_size, name="Dec-Dense")
+            params.hidden_size,
+            return_sequences=True,
+            return_state=True,
+            kernel_initializer=tf.keras.initializers.RandomUniform(-0.1, 0.1),
+            recurrent_initializer=tf.keras.initializers.RandomUniform(-0.1, 0.1),
+            use_bias=False,
+            name="Dec-LSTM")
+        self.dense = tf.keras.layers.Dense(
+            args.vocab_size,
+            kernel_initializer=tf.keras.initializers.RandomUniform(-0.1, 0.1),
+            bias_initializer=tf.keras.initializers.Zeros(),
+            name="Dec-Dense")
         self.hidden_size = params.hidden_size
         self.noise_radius = params.noise_radius
         self.training = True
 
-    def init_state(self, batch_size):
-        return tf.zeros([1, batch_size, self.hidden_size])
-
     def encode(self, indices, noise):
-        embed = self.embedding(indices)
-        output, state_h, state_c = self.encoder_lstm(embed)
+        # (batch_size, max_len, embedding_size)
+        embed = self.embedding_encoder(indices)
+        mask = self.embedding_encoder.compute_mask(indices)
+
+        # state_h: (batch_size, hidden_size)
+        output, state_h, state_c = self.encoder_lstm(embed, mask=mask)
 
         # normalize to unit ball
         state_h = tf.math.l2_normalize(state_h, -1)
@@ -32,51 +62,98 @@ class Seq2Seq(tf.keras.Model):
                                                  dtype=tf.float32)
         return state_h
 
-    def decode(self, indices, hidden, maxlen):
-        batch_size = indices.shape[0]
-        # (batch_size, hidden_size) -> (batch_size, maxlen, hidden_size)
-        all_hidden = tf.tile(tf.expand_dims(hidden, 1), tf.constant([1, maxlen, 1]))
+    def decode(self, indices, hidden):
+        max_len = indices.shape[1]
+        # (batch_size, hidden_size) -> (batch_size, max_len, hidden_size)
+        all_hidden = tf.tile(tf.expand_dims(hidden, 1), tf.constant([1, max_len, 1]))
 
-        # state = (tf.expand_dims(hidden, 0), self.init_state(batch_size))
-        state = (hidden, tf.zeros([batch_size, self.hidden_size]))
-
+        # (batch_size, max_len, embedding_size)
         embeddings = self.embedding_decoder(indices)
 
-        # need to check shape
+        # (batch_size, max_len, hidden_size + embedding_size)
         augmented_embeddings = tf.concat([embeddings, all_hidden], 2)
-        output, state_h, state_c = self.decoder_lstm(augmented_embeddings, state)
+        mask = self.embedding_encoder.compute_mask(indices)
+
+        # output: (batch_size, max_len, hidden_size)
+        output, state_h, state_c = self.decoder_lstm(augmented_embeddings, mask=mask)
+
+        # (batch_size, max_len, vocab_size)
         logits = self.dense(output)
 
-        # (batch_size, maxlen, vocab_size)
         return logits
 
-    def generate(self, indices, hidden, maxlen, sample=False):
+    def generate(self, indices, hidden, max_len, sample=True):
         batch_size = indices.shape[0]
-        state = (hidden, tf.zeros([batch_size, self.hidden_size]))
-        start = tf.ones([batch_size, 1])
+        generated_idx = tf.ones([batch_size, 1], dtype=tf.int32)
 
-        embeddings = self.embedding_decoder(start)
+        # set <sos> as first token
+        start_idx = tf.ones([batch_size, 1], dtype=tf.int32)
+
         all_hidden = tf.expand_dims(hidden, 1)
-        augmented_embeddings = tf.concat([embeddings, all_hidden], 2)
-        all_indices = tf.ones([batch_size, 1], dtype=tf.int64)
-        output, state_h, state_c = self.decoder_lstm(augmented_embeddings, state)
-        logits = self.dense(output)
-        for i in range(maxlen - 1):
-            output, state_h, state_c = self.decoder_lstm(augmented_embeddings, state)
+
+        for i in range(max_len - 1):
+            # (batch_size, 1, embedding_size)
+            embeddings = self.embedding_decoder(start_idx)
+
+            # (batch_size, 1, embedding_size + hidden_size)
+            augmented_embeddings = tf.concat([embeddings, all_hidden], 2)
+
+            # (batch_size, 1, hidden_size)
+            output, state_h, state_c = self.decoder_lstm(augmented_embeddings)
+
+            # (batch_size, 1, vocab_size)
             logits = self.dense(output)
 
             if not sample:
-                indices = tf.math.argmax(logits, -1)
+                idx = tf.math.argmax(logits, axis=-1, output_type=tf.int32)
             else:
-                indices = tf.random.categorical(tf.squeeze(logits), num_samples=1)
+                #logits = tf.nn.softmax(logits, axis=-1)
+                idx = tf.random.categorical(tf.squeeze(logits, axis=1), num_samples=1)
 
-            all_indices = tf.concat([all_indices, indices], axis=1)
-            embeddings = self.embedding_decoder(indices)
-            augmented_embeddings = tf.concat([embeddings, all_hidden], 2)
-        return all_indices
+            idx = tf.cast(idx, dtype=tf.int32)
 
-    def call(self, indices, noise):
+            generated_idx = tf.concat([generated_idx, idx], axis=1)
+
+        return generated_idx
+
+    def call(self, indices, encode_only=False, noise=False):
         hidden = self.encode(indices, noise)
-        decoded = self.decode(indices, hidden, maxlen=31)
-        return hidden, decoded
+        if encode_only:
+            return hidden
+        decoded = self.decode(indices, hidden)
+        return decoded
 
+
+if __name__ == '__main__':
+    tf.random.set_seed(41)
+    # Load the parameters from the experiment params.json file in model_dir
+    args = configure_args()
+    json_path = os.path.join(args.model_dir, 'params.json')
+    assert os.path.isfile(json_path), "No json configuration file found at {}".format(json_path)
+    params = Params(json_path)
+
+    autoencoder = Seq2Seq(params, args)
+    generator = Generator(params)
+
+    corpus = Corpus(args.data_dir, n_tokens=args.vocab_size)
+    dataset = tf.data.Dataset.from_tensor_slices((corpus.train_source, corpus.train_target)).batch(params.batch_size)
+    batch = next(iter(dataset))
+    source = batch[0]
+    target = batch[1]
+    x = tf.random.normal((source.shape[0], 100))
+    hidden = generator(x, training=False)
+    max_indices = autoencoder.generate(source, hidden, 15).numpy()
+    ge_sent = []
+    for idx in max_indices:
+        words = [corpus.dictionary.idx2token[x] for x in idx]
+
+        truncated_sent = []
+        for w in words:
+            if w != '<eos>':
+                truncated_sent.append(w)
+            else:
+                break
+        sent = " ".join(truncated_sent)
+        ge_sent.append(sent)
+
+    print(ge_sent[0])

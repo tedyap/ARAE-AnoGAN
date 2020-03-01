@@ -2,6 +2,7 @@ import os
 import logging
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 
 
 class Dictionary:
@@ -93,25 +94,22 @@ class Corpus:
                 linecount += 1
                 line = line.split(",")
                 words = line[0].split()
-                if len(words) > self.maxlen - 2:
-                    dropped += 1
-                    continue
-                wordcount = wordcount + len(words)
-                # convert word to index
-                vocab = self.dictionary.word2idx
-                unk_idx = vocab['<oov>']
-                indices = [vocab[w] if w in vocab else unk_idx for w in words]
-                # pad with zeroes so length of sentence is equal to max length
-                indices = np.pad(indices, [0, self.maxlen - len(indices)], 'constant', constant_values=(0, 0)).tolist()
-                if source is True:
-                    indices = [1] + indices
+                if len(words) < self.maxlen:
+                    wordcount = wordcount + len(words)
+                    # convert word to index
+                    vocab = self.dictionary.word2idx
+                    unk_idx = vocab['<oov>']
+                    indices = [vocab[w] if w in vocab else unk_idx for w in words]
+                    if source:
+                        indices = [1] + indices
+                    else:
+                        indices = indices + [2]
+                    lines.append(indices)
+                    #if label:
+                        #self.df_test = self.df_test.append({"sentence": line[0], "label": int(line[1][0]), "loss": 0}, ignore_index=True)
                 else:
-                    indices = indices + [2]
-                lines.append(indices)
-                if label:
-                    self.df_test = self.df_test.append({"sentence": line[0], "label": int(line[1][0]), "loss": 0},
-                                                       ignore_index=True)
-
+                    dropped += 1
+        lines = tf.keras.preprocessing.sequence.pad_sequences(lines, maxlen=self.maxlen, padding='post')
         np.asarray(lines)
 
         logging.info("Number of sentences dropped from {}: {} out of {} total".

@@ -1,37 +1,44 @@
 import tensorflow as tf
+from opts import configure_args
+from utils import Params
+import os
 
 
 class Discriminator(tf.keras.Model):
     def __init__(self, params):
         super(Discriminator, self).__init__()
-        self.optimizer = tf.keras.optimizers.Adam(params.lr_disc)
         self.layer_sizes = params.disc_size
 
         self.layers_list = []
 
-        self.layers_list.append(tf.keras.layers.Dense(self.layer_sizes[0], input_shape=(params.hidden_size,)))
-        if params.batch_norm:
-            bn = tf.keras.layers.BatchNormalization(epsilon=1e-05, momentum=0.1)
-            self.layers_list.append(bn)
+        self.layers_list.append(tf.keras.layers.Dense(self.layer_sizes[0],
+                                                      kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.02),
+                                                      input_shape=(params.hidden_size,)))
 
         activation = tf.keras.layers.LeakyReLU(0.2)
         self.layers_list.append(activation)
 
-        for i in range(len(self.layer_sizes)):
-            layer = tf.keras.layers.Dense(self.layer_sizes[i])
+        for i in range(1, len(self.layer_sizes)):
+            layer = tf.keras.layers.Dense(self.layer_sizes[i], kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.02))
             self.layers_list.append(layer)
+
+            if params.batch_norm:
+                bn = tf.keras.layers.BatchNormalization(epsilon=1e-05, momentum=0.1,
+                                                        gamma_initializer=tf.keras.initializers.RandomNormal(stddev=0.02))
+                self.layers_list.append(bn)
 
             activation = tf.keras.layers.LeakyReLU(0.2)
             self.layers_list.append(activation)
 
-        self.layers_list.append(tf.keras.layers.Dense(1))
+        self.layers_list.append(tf.keras.layers.Dense(1, kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.02)))
 
     def call(self, x, training):
         for i, layer in enumerate(self.layers_list):
-            if i == 1 and not training:
-                continue
+            if i == 3 and not training:
+                layer.trainable = False
+            elif i == 3 and training:
+                layer.trainable = True
             x = layer(x)
-        x = tf.reduce_mean(x)
         return x
 
     def extract_feature(self, x):
@@ -39,4 +46,17 @@ class Discriminator(tf.keras.Model):
             if i != 1:
                 x = layer(x)
         return x
+
+
+if __name__ == '__main__':
+    # Load the parameters from the experiment params.json file in model_dir
+    args = configure_args()
+    json_path = os.path.join(args.model_dir, 'params.json')
+    assert os.path.isfile(json_path), "No json configuration file found at {}".format(json_path)
+    params = Params(json_path)
+
+    discriminator = Discriminator(params)
+    x = tf.random.normal([8, 300])
+    discriminator(x, training=True)
+    print(discriminator.summary())
 

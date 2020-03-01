@@ -136,8 +136,8 @@ def generate_data_file(directory):
             row['label'] = 2
         row['text'] = clean_text(row['text'])
 
-    train_set_string = [train_set[i]["text"] for i in train_idx_normal]
-    test_set_string = [test_set[i]["text"] for i in test_idx]
+    train_set_string = [train_set[i]["text"] for i in train_idx_normal if len(train_set[i]["text"].split()) < 30]
+    test_set_string = [test_set[i]["text"] for i in test_idx if len(test_set[i]["text"].split()) < 30]
 
     with open(os.path.join(directory, 'reuters_train.txt'), 'w') as f:
         for i in train_set_string:
