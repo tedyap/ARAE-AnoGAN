@@ -41,7 +41,7 @@ python train.py --model_dir experiments/<insert model directory name>
 ```
 It will instantiate the model and train it on the training dataset with hyperparameters set in `params.json`. When training is done, you can check `output` directory under your model directory to look at samples of generated text.
 
-4. To train the model with different dataset and perform hyperparameters search, run
+4. **Custom dataset and hyperparameters search** To train the model with different dataset and perform hyperparameters search, run
 ```angular2
 python train.py --data_dir <insert data directory>
 ```
