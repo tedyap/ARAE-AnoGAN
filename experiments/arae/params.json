@@ -1,6 +1,6 @@
 {
-    "batch_size": 8,
-    "max_epoch": 20,
+    "batch_size": 64,
+    "max_epoch": 60,
     "embedding_size": 300,
     "hidden_size": 300,
     "noise_size": 100,
@@ -20,11 +20,12 @@
     "epoch_enc": 1,
     "epoch_gan": 1,
     "lr_ae": 1,
-    "lr_disc": 0.0001,
-    "lr_gen": 0.0001,
+    "lr_disc": 1e-05,
+    "lr_gen": 5e-06,
     "beta1": 0.5,
     "clip": 1,
     "epoch_num": 0,
     "batch_epoch": 0,
-    "grad_lambda": 1
+    "gp_lambda": 10,
+    "print_every": 10
 }

@@ -1,4 +1,3 @@
-import argparse
 import os
 import string
 import re
@@ -6,6 +5,7 @@ import nltk
 from nltk.corpus import reuters
 from nltk import word_tokenize
 from nltk.corpus import stopwords
+from opts import configure_args
 import ssl
 
 try:
@@ -17,9 +17,6 @@ else:
 
 nltk.download('stopwords')
 nltk.download('punkt')
-
-parser = argparse.ArgumentParser()
-parser.add_argument('--data_dir', default='data', help="Directory containing the dataset")
 
 
 def reuters_dataset(directory, train=True, test=True, clean_txt=True):
@@ -136,20 +133,24 @@ def generate_data_file(directory):
             row['label'] = 2
         row['text'] = clean_text(row['text'])
 
-    train_set_string = [train_set[i]["text"] for i in train_idx_normal if len(train_set[i]["text"].split()) < 30]
-    test_set_string = [test_set[i]["text"] for i in test_idx if len(test_set[i]["text"].split()) < 30]
+    train_set_string = [train_set[i]["text"] for i in train_idx_normal if 5 < len(train_set[i]["text"].split()) < 30]
+    test_set_string = [test_set[i]["text"] for i in test_idx if 5 < len(test_set[i]["text"].split()) < 30]
 
     with open(os.path.join(directory, 'reuters_train.txt'), 'w') as f:
         for i in train_set_string:
             f.write(i + '\n')
 
     with open(os.path.join(directory, 'reuters_test.txt'), 'w') as f:
+        for i in test_set_string:
+            f.write(i + '\n')
+
+    with open(os.path.join(directory, 'reuters_label.txt'), 'w') as f:
         for i, line in enumerate(test_set_string):
-            f.write(line + ',' + str(label[i]) + '\n')
+            f.write(str(label[i]) + '\n')
 
 
 if __name__ == '__main__':
-    args = parser.parse_args()
+    args = configure_args()
 
     if not os.path.exists(args.data_dir):
         os.makedirs(args.data_dir)

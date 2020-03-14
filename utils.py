@@ -1,6 +1,8 @@
 import os
 import json
 import logging
+import random
+import numpy as np
 import tensorflow as tf
 from collections import defaultdict
 
@@ -77,7 +79,7 @@ def set_logger(log_path):
 
     if not logger.handlers:
         # Logging to a file
-        file_handler = logging.FileHandler(log_path)
+        file_handler = logging.FileHandler(log_path, mode='w')
         file_handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s: %(message)s'))
         logger.addHandler(file_handler)
 
@@ -146,3 +148,9 @@ class Checkpoints:
         self.ae_ckpt.restore(self.ae_manager.latest_checkpoint)
         self.disc_ckpt.restore(self.disc_manager.latest_checkpoint)
         self.gen_ckpt.restore(self.gen_manager.latest_checkpoint)
+
+
+def set_seeds(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    tf.random.set_seed(seed)

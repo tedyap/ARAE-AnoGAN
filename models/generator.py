@@ -34,14 +34,20 @@ class Generator(tf.keras.Model):
             self.layers_list.append(activation)
 
         self.layers_list.append(
-            tf.keras.layers.Dense(params.hidden_size, kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.02)))
+            tf.keras.layers.Dense(params.hidden_size,
+                                  kernel_initializer=tf.keras.initializers.RandomNormal(stddev=0.02)))
 
     def call(self, x, training):
         for i, layer in enumerate(self.layers_list):
-            if i == 3 and not training:
+            if 'batch_normalization' in layer.name and not training:
                 layer.trainable = False
-            elif i == 3 and training:
+            elif 'batch_normalization' in layer.name and training:
                 layer.trainable = True
+            x = layer(x)
+        return x
+
+    def generate(self, x):
+        for i, layer in enumerate(self.layers_list[:-1]):
             x = layer(x)
         return x
 

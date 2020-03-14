@@ -34,17 +34,16 @@ class Discriminator(tf.keras.Model):
 
     def call(self, x, training):
         for i, layer in enumerate(self.layers_list):
-            if i == 3 and not training:
+            if 'batch_normalization' in layer.name and not training:
                 layer.trainable = False
-            elif i == 3 and training:
+            elif 'batch_normalization' in layer.name and training:
                 layer.trainable = True
             x = layer(x)
         return x
 
     def extract_feature(self, x):
-        for i, layer in enumerate(self.layers_list[:4]):
-            if i != 1:
-                x = layer(x)
+        for i, layer in enumerate(self.layers_list[:-1]):
+            x = layer(x)
         return x
 
 
@@ -56,7 +55,7 @@ if __name__ == '__main__':
     params = Params(json_path)
 
     discriminator = Discriminator(params)
-    x = tf.random.normal([8, 300])
+    x = tf.random.normal([8, 500])
     discriminator(x, training=True)
     print(discriminator.summary())
 

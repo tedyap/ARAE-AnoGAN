@@ -6,3 +6,4 @@ data/
 restart.py
 output/
 experiments/base
+*hyperparams*

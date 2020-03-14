@@ -6,7 +6,7 @@ from models.autoencoder import Seq2Seq
 from models.discriminator import Discriminator
 from models.generator import Generator
 from opts import configure_args
-from data import Corpus
+from build_vocab import Corpus
 from utils import Params, Metrics, Checkpoints, set_logger
 import numpy as np
 import random

@@ -1,6 +1,6 @@
 import os
 import tensorflow as tf
-from data import Corpus
+from build_vocab import Corpus
 from models.generator import Generator
 from opts import configure_args
 from utils import Params
@@ -91,6 +91,9 @@ class Seq2Seq(tf.keras.Model):
 
         all_hidden = tf.expand_dims(hidden, 1)
 
+        state_h = tf.zeros([batch_size, self.hidden_size])
+        state_c = tf.zeros([batch_size, self.hidden_size])
+
         for i in range(max_len - 1):
             # (batch_size, 1, embedding_size)
             embeddings = self.embedding_decoder(start_idx)
@@ -99,7 +102,7 @@ class Seq2Seq(tf.keras.Model):
             augmented_embeddings = tf.concat([embeddings, all_hidden], 2)
 
             # (batch_size, 1, hidden_size)
-            output, state_h, state_c = self.decoder_lstm(augmented_embeddings)
+            output, state_h, state_c = self.decoder_lstm(augmented_embeddings, initial_state=[state_h, state_c])
 
             # (batch_size, 1, vocab_size)
             logits = self.dense(output)
@@ -125,6 +128,7 @@ class Seq2Seq(tf.keras.Model):
 
 
 if __name__ == '__main__':
+
     tf.random.set_seed(41)
     # Load the parameters from the experiment params.json file in model_dir
     args = configure_args()
@@ -140,20 +144,4 @@ if __name__ == '__main__':
     batch = next(iter(dataset))
     source = batch[0]
     target = batch[1]
-    x = tf.random.normal((source.shape[0], 100))
-    hidden = generator(x, training=False)
-    max_indices = autoencoder.generate(source, hidden, 15).numpy()
-    ge_sent = []
-    for idx in max_indices:
-        words = [corpus.dictionary.idx2token[x] for x in idx]
-
-        truncated_sent = []
-        for w in words:
-            if w != '<eos>':
-                truncated_sent.append(w)
-            else:
-                break
-        sent = " ".join(truncated_sent)
-        ge_sent.append(sent)
-
-    print(ge_sent[0])
+    autoencoder(source)
