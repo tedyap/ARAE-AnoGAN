@@ -1,6 +1,15 @@
-# ARAE-AnoGAN for Text Anomaly Detection (Work In Progress)
+# ARAE-AnoGAN for Text Anomaly Detection
 
-Tensorflow 2.0 implementation of [`ARAE`](https://arxiv.org/pdf/1706.04223.pdf) and [`AnoGAN`](https://arxiv.org/pdf/1703.05921.pdf) to detect anomalies in text.
+[Illinois Wesleyan University Research Honors] The final paper is presented [here](https://digitalcommons.iwu.edu/cgi/viewcontent.cgi?article=1023&context=cs_honproj).
+
+## Abstract
+Generative adversarial networks (GANs) are now one of the
+key techniques for detecting anomalies in images, yielding remarkable
+results. Applying similar methods to discrete structures, such as text sequences, is still largely an unknown. In this work, we introduce a new
+GAN-based text anomaly detection method, called ARAE-AnoGAN,
+that trains an adversarially regularized autoencoder (ARAE) to reconstruct normal sentences and detects anomalies via a combined anomaly
+score based on the building blocks of ARAE. Finally, we present experimental results demonstrating the effectiveness of ARAE-AnoGAN and
+other deep learning methods in text anomaly detection.
 
 ## Requirements
 
